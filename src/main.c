@@ -9,6 +9,8 @@
 #define SYSFS_PREFIX "/sys/class/leds/system76::kbd_backlight"
 #define SYSFS_COLOR_PREFIX SYSFS_PREFIX "/color_"
 
+#define JOIN(prefix, value) prefix value
+
 char *join(const char *prefix, const char *value);
 
 int print_usage(int argc, char *argv[]);
@@ -47,14 +49,12 @@ int main(int argc, char *argv[])
 
     if (toggle) {
         char buf[5];
-        char *brightness = join(SYSFS_PREFIX, "/brightness");
+        const char *brightness = JOIN(SYSFS_PREFIX, "/brightness");
 
         FILE *ifs = fopen(brightness, "r");
-        if (!ifs) {
-            free(brightness);
+        if (!ifs)
             return error(SYSFS_READ_FAILED,
                          "unable to open sysfs for reading; are you root?");
-        }
         size_t bytes = fread(buf, sizeof(char), 4, ifs);
         fclose(ifs);
         buf[bytes] = '\0';
@@ -65,46 +65,36 @@ int main(int argc, char *argv[])
 
         if (strcmp(buf, "0") == 0) {
             // Get cached hw_brightness
-            char *hw_brightness = join(SYSFS_PREFIX, "/brightness_hw_changed");
+            char *hw_brightness = JOIN(SYSFS_PREFIX, "/brightness_hw_changed");
 
             ifs = fopen(hw_brightness, "r");
-            if (!ifs) {
-                free(brightness);
-                free(hw_brightness);
+            if (!ifs)
                 return error(
                     SYSFS_READ_FAILED,
                     "unable to open sysfs for reading; are you root?");
-            }
             bytes = fread(buf, sizeof(char), 4, ifs);
             fclose(ifs);
             buf[bytes] = '\0';
 
             // Restore the original brightness.
             ifs = fopen(brightness, "w");
-            if (!ifs) {
-                free(brightness);
-                free(hw_brightness);
+            if (!ifs)
                 return error(
                     SYSFS_WRITE_FAILED,
                     "unable to open sysfs for writing; are you root?");
-            }
             fwrite(buf, sizeof(char), bytes, ifs);
             fclose(ifs);
 
-            free(hw_brightness);
         } else {
             // Turn it off; brightness is on!
             ifs = fopen(brightness, "w");
-            if (!ifs) {
-                free(brightness);
+            if (!ifs)
                 return error(
                     SYSFS_WRITE_FAILED,
                     "unable to open sysfs for writing; are you root?");
-            }
             fwrite("0", sizeof(char), 1, ifs);
             fclose(ifs);
         }
-        free(brightness);
     }
 
     const char *arr[] = {"left", "center", "right", "extra"};
