@@ -5,11 +5,15 @@
 
 #define SYSFS_READ_FAILED 2
 #define SYSFS_WRITE_FAILED 3
+#define INVALID_ARGUMENT 1
 
 #define SYSFS_PREFIX "/sys/class/leds/system76::kbd_backlight"
 #define SYSFS_COLOR_PREFIX SYSFS_PREFIX "/color_"
 
 #define JOIN(prefix, value) prefix value
+
+// Bounds for checking.
+#define DEFAULT_INT_LENGTH 3
 
 char *join(const char *prefix, const char *value);
 
@@ -17,16 +21,22 @@ int print_usage(int argc, char *argv[]);
 int print_help(int argc, char *argv[]);
 int error(int return_code, const char *message);
 
+int is_integer(const char *str, const int max_length);
+
 int main(int argc, char *argv[])
 {
     int opt;
     char *left = NULL, *center = NULL, *right = NULL, *extra = NULL;
     char toggle = 0;
+    int brightness_change = 0;
 
-    while ((opt = getopt(argc, argv, "hl:c:r:e:t")) != -1) {
+    while ((opt = getopt(argc, argv, "htl:c:r:e:b:")) != -1) {
         switch (opt) {
         case 'h':
             return print_help(argc, argv);
+        case 't':
+            toggle = 1;
+            break;
         case 'l':
             left = optarg;
             break;
@@ -39,8 +49,14 @@ int main(int argc, char *argv[])
         case 'e':
             extra = optarg;
             break;
-        case 't':
-            toggle = 1;
+        case 'b':
+            if (!is_integer(optarg, DEFAULT_INT_LENGTH))
+                return error(INVALID_ARGUMENT, "-b requires a valid integer.");
+            brightness_change = atoi(optarg);
+            // If it's out of range (we only accept -255 to 255).
+            if (brightness_change < -255 || brightness_change > 255)
+                return error(INVALID_ARGUMENT,
+                             "-b requires a valid integer (-255 - 255).");
             break;
         case '?':
             return print_usage(argc, argv);
@@ -65,7 +81,8 @@ int main(int argc, char *argv[])
 
         if (strcmp(buf, "0") == 0) {
             // Get cached hw_brightness
-            char *hw_brightness = JOIN(SYSFS_PREFIX, "/brightness_hw_changed");
+            const char *hw_brightness =
+                JOIN(SYSFS_PREFIX, "/brightness_hw_changed");
 
             ifs = fopen(hw_brightness, "r");
             if (!ifs)
@@ -95,6 +112,55 @@ int main(int argc, char *argv[])
             fwrite("0", sizeof(char), 1, ifs);
             fclose(ifs);
         }
+    }
+
+    if (brightness_change != 0) {
+        const char *brightness = JOIN(SYSFS_PREFIX, "/brightness");
+        const char *max_brightness = JOIN(SYSFS_PREFIX, "/max_brightness");
+        FILE *ifs = fopen(brightness, "r");
+        if (!ifs)
+            return error(SYSFS_READ_FAILED,
+                         "unable to open sysfs for reading; are you root?");
+
+        char buf[4];
+        size_t bytes = fread(buf, sizeof(char), 3, ifs);
+        buf[bytes] = '\0';
+
+        fclose(ifs);
+
+        int current = atoi(buf);
+
+        ifs = fopen(max_brightness, "r");
+        if (!ifs)
+            return error(SYSFS_READ_FAILED,
+                         "unable to open sysfs for reading; are you root?");
+
+        bytes = fread(buf, sizeof(char), 3, ifs);
+        buf[bytes] = '\0';
+        fclose(ifs);
+
+        int max = atoi(buf);
+
+        const int LOWER_BOUND = 45;
+        const int UPPER_BOUND = max;
+
+        int new_value = current + brightness_change;
+        if (new_value < LOWER_BOUND) {
+            new_value = LOWER_BOUND;
+        } else if (new_value > UPPER_BOUND) {
+            new_value = UPPER_BOUND;
+        }
+
+        char output[5];
+        sprintf(output, "%d", new_value);
+
+        ifs = fopen(brightness, "w");
+        if (!ifs)
+            return error(SYSFS_WRITE_FAILED,
+                         "unable to open sysfs for writing; are you root?");
+
+        fwrite(output, sizeof(char), strlen(output), ifs);
+        fclose(ifs);
     }
 
     const char *arr[] = {"left", "center", "right", "extra"};
@@ -157,4 +223,32 @@ int error(int return_code, const char *message)
 {
     fprintf(stderr, "error: %s\n", message);
     return return_code;
+}
+
+int is_integer(const char *str, const int max_length)
+{
+    int len = 0;
+
+    char *p = (char *)str;
+    while (*p != '\0') {
+        switch (*(p++)) {
+        case '-':
+            break;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            ++len;
+            break;
+        default:
+            return 0;
+        }
+    }
+    return len <= max_length;
 }
