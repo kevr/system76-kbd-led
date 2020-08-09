@@ -128,8 +128,8 @@ char *join(const char *prefix, const char *value)
 
     char *buf = (char *)malloc(prefix_len + value_len + 1);
     memset(buf, 0, prefix_len + value_len + 1);
-    strncpy(buf, prefix, prefix_len);
-    strncpy(&buf[prefix_len], value, value_len);
+    memcpy(buf, prefix, prefix_len);
+    memcpy(&buf[prefix_len], value, value_len);
 
     return buf;
 }
