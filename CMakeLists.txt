@@ -22,4 +22,6 @@ set(
 # set(CMAKE_CXX_STANDARD_LIBRARIES ${PROJECT_LIBS})
 
 add_subdirectory(src)
+
+set(CPACK_PACKAGE_CONTACT "kevr.gtalk@gmail.com")
 include(CPack)
