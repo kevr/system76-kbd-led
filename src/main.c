@@ -1,27 +1,40 @@
+#include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
-#define SYSFS_READ_FAILED 2
-#define SYSFS_WRITE_FAILED 3
+#define SYSFS_OPEN_FAILED 2
 #define INVALID_ARGUMENT 1
 
-#define SYSFS_PREFIX "/sys/class/leds/system76::kbd_backlight"
-#define SYSFS_COLOR_PREFIX SYSFS_PREFIX "/color_"
+#define SYSFS_PREFIX "/sys/class/leds/system76::kbd_backlight/"
+#define SYSFS_COLOR_PREFIX SYSFS_PREFIX "color_"
+
+#define CACHE_PATH "/var/cache/system76-kbd-led/brightness"
+#define HW_CACHE_PATH "/var/cache/system76-kbd-led/hw_brightness"
 
 #define JOIN(prefix, value) prefix value
 
 // Bounds for checking.
 #define DEFAULT_INT_LENGTH 3
 
-char *join(const char *prefix, const char *value);
+char *join(const char *prefix, const char *suffix);
 
 int print_usage(int argc, char *argv[]);
 int print_help(int argc, char *argv[]);
 int error(int return_code, const char *message);
 
-int is_integer(const char *str, const int max_length);
+void prepare_cache(void);
+
+FILE *open_file(const char *path, const char *modes);
+int filesize(FILE *f);
+char *dirname(const char *path);
+
+char *allocate(int size);
+void strip_newlines(char *buffer, const size_t bytes);
 
 int main(int argc, char *argv[])
 {
@@ -50,117 +63,125 @@ int main(int argc, char *argv[])
             extra = optarg;
             break;
         case 'b':
-            if (!is_integer(optarg, DEFAULT_INT_LENGTH))
-                return error(INVALID_ARGUMENT, "-b requires a valid integer.");
-            brightness_change = atoi(optarg);
-            // If it's out of range (we only accept -255 to 255).
-            if (brightness_change < -255 || brightness_change > 255)
-                return error(INVALID_ARGUMENT,
-                             "-b requires a valid integer (-255 - 255).");
+            brightness_change = strtol(optarg, NULL, 10);
+            if (errno)
+                return error(errno, strerror(errno));
             break;
         case '?':
             return print_usage(argc, argv);
         }
     }
 
-    if (toggle) {
-        char buf[5];
-        const char *brightness = JOIN(SYSFS_PREFIX, "/brightness");
-
-        FILE *ifs = fopen(brightness, "r");
-        if (!ifs)
-            return error(SYSFS_READ_FAILED,
-                         "unable to open sysfs for reading; are you root?");
-        size_t bytes = fread(buf, sizeof(char), 4, ifs);
-        fclose(ifs);
-        buf[bytes] = '\0';
-
-        // Strip \n from the end of our input by overriding it with \0.
-        while (buf[bytes - 1] == '\n')
-            buf[--bytes] = '\0';
-
-        if (strcmp(buf, "0") == 0) {
-            // Get cached hw_brightness
-            const char *hw_brightness =
-                JOIN(SYSFS_PREFIX, "/brightness_hw_changed");
-
-            ifs = fopen(hw_brightness, "r");
-            if (!ifs)
-                return error(
-                    SYSFS_READ_FAILED,
-                    "unable to open sysfs for reading; are you root?");
-            bytes = fread(buf, sizeof(char), 4, ifs);
-            fclose(ifs);
-            buf[bytes] = '\0';
-
-            // Restore the original brightness.
-            ifs = fopen(brightness, "w");
-            if (!ifs)
-                return error(
-                    SYSFS_WRITE_FAILED,
-                    "unable to open sysfs for writing; are you root?");
-            fwrite(buf, sizeof(char), bytes, ifs);
-            fclose(ifs);
-
-        } else {
-            // Turn it off; brightness is on!
-            ifs = fopen(brightness, "w");
-            if (!ifs)
-                return error(
-                    SYSFS_WRITE_FAILED,
-                    "unable to open sysfs for writing; are you root?");
-            fwrite("0", sizeof(char), 1, ifs);
-            fclose(ifs);
-        }
-    }
-
+    // If -b (brightness) was given.
     if (brightness_change != 0) {
-        const char *brightness = JOIN(SYSFS_PREFIX, "/brightness");
-        const char *max_brightness = JOIN(SYSFS_PREFIX, "/max_brightness");
-        FILE *ifs = fopen(brightness, "r");
-        if (!ifs)
-            return error(SYSFS_READ_FAILED,
-                         "unable to open sysfs for reading; are you root?");
+        const char *brightness = JOIN(SYSFS_PREFIX, "brightness");
+        const char *max_brightness = JOIN(SYSFS_PREFIX, "max_brightness");
 
-        char buf[4];
-        size_t bytes = fread(buf, sizeof(char), 3, ifs);
-        buf[bytes] = '\0';
-
-        fclose(ifs);
-
-        int current = atoi(buf);
-
-        ifs = fopen(max_brightness, "r");
-        if (!ifs)
-            return error(SYSFS_READ_FAILED,
-                         "unable to open sysfs for reading; are you root?");
-
-        bytes = fread(buf, sizeof(char), 3, ifs);
+        FILE *ifs = open_file(brightness, "r");
+        int size = filesize(ifs);
+        char *buf = allocate(size + 1);
+        size_t bytes = fread(buf, sizeof(char), size, ifs);
         buf[bytes] = '\0';
         fclose(ifs);
+        int current = strtol(buf, NULL, 10);
 
-        int max = atoi(buf);
+        prepare_cache();
+        ifs = open_file(max_brightness, "r");
+        size = filesize(ifs);
+        bytes = fread(buf, sizeof(char), size, ifs);
+        buf[bytes] = '\0';
+        fclose(ifs);
+        int max = strtol(buf, NULL, 10);
 
         const int LOWER_BOUND = 45;
         const int UPPER_BOUND = max;
 
         int new_value = current + brightness_change;
-        if (new_value < LOWER_BOUND) {
+        if (new_value < LOWER_BOUND)
             new_value = LOWER_BOUND;
-        } else if (new_value > UPPER_BOUND) {
+        else if (new_value > UPPER_BOUND)
             new_value = UPPER_BOUND;
-        }
 
-        char output[5];
+        // Take log10(N) + 1 as the possible length of the value integer.
+        int len = log10(new_value) + 1;
+        char *output = allocate(len + 1);
         sprintf(output, "%d", new_value);
 
-        ifs = fopen(brightness, "w");
-        if (!ifs)
-            return error(SYSFS_WRITE_FAILED,
-                         "unable to open sysfs for writing; are you root?");
-
+        ifs = open_file(brightness, "w");
         fwrite(output, sizeof(char), strlen(output), ifs);
         fclose(ifs);
+
+        FILE *ofs = open_file(CACHE_PATH, "w");
+        fwrite(output, sizeof(char), strlen(output), ofs);
+        fclose(ofs);
+
+        free(output);
+        free(buf);
+    }
+
+    prepare_cache();
+
+    // If -t (toggle) was given.
+    if (toggle) {
+        const char *brightness = JOIN(SYSFS_PREFIX, "brightness");
+
+        // Read current brightness value.
+        FILE *ifs = open_file(brightness, "r");
+        int size = filesize(ifs);
+        char *buf = allocate(size + 1);
+        size_t bytes = fread(buf, sizeof(char), 4, ifs);
+        fclose(ifs);
+
+        // Prepare buffer.
+        buf[bytes] = '\0';
+        strip_newlines(buf, bytes - 1);
+
+        if (strcmp(buf, "0") == 0) {
+            // Get cached hw_brightness
+            const char *hw_brightness =
+                JOIN(SYSFS_PREFIX, "brightness_hw_changed");
+
+            ifs = open_file(CACHE_PATH, "r");
+            size = filesize(ifs);
+
+            char *cache_buf = allocate(size + 1);
+            bytes = fread(cache_buf, sizeof(char), size, ifs);
+            fclose(ifs);
+
+            cache_buf[bytes] = '\0';
+            strip_newlines(cache_buf, bytes - 1);
+
+            // Restore the original brightness.
+            ifs = open_file(brightness, "w");
+            fwrite(cache_buf, sizeof(char), bytes, ifs);
+            fclose(ifs);
+
+            free(cache_buf);
+
+        } else {
+            ifs = open_file(brightness, "r");
+            size = filesize(ifs);
+            char *brightness_value = allocate(size + 1);
+            bytes = fread(brightness_value, sizeof(char), size, ifs);
+            fclose(ifs);
+
+            brightness_value[bytes] = '\0';
+            strip_newlines(brightness_value, bytes - 1);
+
+            // Save brightness value in the cache.
+            ifs = open_file(CACHE_PATH, "w");
+            fwrite(brightness_value, sizeof(char), size, ifs);
+            fclose(ifs);
+
+            // Turn it off!
+            ifs = open_file(brightness, "w");
+            fwrite("0", sizeof(char), 1, ifs);
+            fclose(ifs);
+
+            free(brightness_value);
+        }
+
+        free(buf);
     }
 
     const char *arr[] = {"left", "center", "right", "extra"};
@@ -169,40 +190,33 @@ int main(int argc, char *argv[])
     int i;
     for (i = 0; i < 4; ++i) {
         if (colors[i] != NULL) {
-            char *p = join(SYSFS_COLOR_PREFIX, arr[i]);
-            FILE *ofs = fopen(p, "w");
-            if (!ofs) {
-                free(p);
-                return error(
-                    SYSFS_WRITE_FAILED,
-                    "unable to open sysfs for writing; are you root?");
-            }
+            char *path = join(SYSFS_COLOR_PREFIX, arr[i]);
+            FILE *ofs = open_file(path, "w");
             fwrite(colors[i], sizeof(char), 8, ofs);
             fwrite("\n", sizeof(char), 1, ofs);
             fclose(ofs);
-            free(p);
+            free(path);
         }
     }
 
     return 0;
 }
 
-char *join(const char *prefix, const char *value)
+char *join(const char *prefix, const char *suffix)
 {
     const int prefix_len = strlen(prefix);
-    const int value_len = strlen(value);
+    const int suffix_len = strlen(suffix);
 
-    char *buf = (char *)malloc(prefix_len + value_len + 1);
-    memset(buf, 0, prefix_len + value_len + 1);
+    char *buf = allocate(prefix_len + suffix_len + 1);
     memcpy(buf, prefix, prefix_len);
-    memcpy(&buf[prefix_len], value, value_len);
+    memcpy(&buf[prefix_len], suffix, suffix_len);
 
     return buf;
 }
 
 int print_usage(int argc, char *argv[])
 {
-    printf("usage: %s [-hlcret]\n", argv[0]);
+    printf("usage: %s [-hlcretb]\n", argv[0]);
     return -1;
 }
 
@@ -215,7 +229,7 @@ int print_help(int argc, char *argv[])
         "(rgb).\n "
         "-e <arg>\t| Extra color (rgb).\n -t\t\t| Toggle keyboard light (on "
         "or "
-        "off).\n\n");
+        "off).\n -b <arg>\t| A negative or positive inc/dec value.\n\n");
     return 0;
 }
 
@@ -225,30 +239,141 @@ int error(int return_code, const char *message)
     return return_code;
 }
 
-int is_integer(const char *str, const int max_length)
+// Setup cache.
+void prepare_cache(void)
 {
-    int len = 0;
+    char is_valid = 1;
+    if (access(CACHE_PATH, F_OK) == -1)
+        is_valid = 0;
 
-    char *p = (char *)str;
-    while (*p != '\0') {
-        switch (*(p++)) {
-        case '-':
-            break;
-        case '0':
-        case '1':
-        case '2':
-        case '3':
-        case '4':
-        case '5':
-        case '6':
-        case '7':
-        case '8':
-        case '9':
-            ++len;
-            break;
-        default:
-            return 0;
-        }
+    // Create a copy of CACHE_PATH.
+    char *buf = allocate(strlen(CACHE_PATH) + 1);
+    strcpy(buf, CACHE_PATH);
+
+    // Pass it to dirname to get the directory.
+    char *dir = dirname(buf);
+    free(buf);
+
+    // Try to mkdir.
+    int rc = mkdir(dir, 0777);
+
+    // We care about errno's other than EEXIST.
+    if (rc == -1 && errno != EEXIST) {
+        fprintf(stderr, "error: unable to create cache directory at %s.", dir);
+        abort();
     }
-    return len <= max_length;
+
+    const char *brightness_path = JOIN(SYSFS_PREFIX, "brightness_hw_changed");
+
+    FILE *ifs = fopen(HW_CACHE_PATH, "r");
+    if (!ifs) {
+        ifs = open_file(brightness_path, "r");
+        int size = filesize(ifs);
+        char *current = allocate(size + 1);
+        int bytes = fread(current, sizeof(char), size, ifs);
+        fclose(ifs);
+        current[bytes] = '\0';
+
+        FILE *ofs = open_file(HW_CACHE_PATH, "w");
+        fwrite(current, sizeof(char), bytes, ofs);
+        fclose(ofs);
+
+        ofs = open_file(CACHE_PATH, "w");
+        fwrite(current, sizeof(char), bytes, ofs);
+        fclose(ofs);
+
+        free(current);
+    } else {
+        int size = filesize(ifs);
+        char *current = allocate(size + 1);
+        int bytes = fread(current, sizeof(char), size, ifs);
+        fclose(ifs);
+        current[bytes] = '\0';
+
+        FILE *ofs = open_file(brightness_path, "r");
+        size = filesize(ofs);
+        char *sys_current = allocate(size + 1);
+        bytes = fread(sys_current, sizeof(char), size, ofs);
+        fclose(ofs);
+        sys_current[bytes] = '\0';
+
+        // If the values are different, update the cache!
+        if (strcmp(current, sys_current) != 0) {
+            ofs = open_file(CACHE_PATH, "w");
+            fwrite(sys_current, sizeof(char), strlen(sys_current), ofs);
+            fclose(ofs);
+        }
+
+        free(current);
+        free(sys_current);
+    }
+
+    // Save initial brightness value to CACHE_PATH.
+    if (!is_valid) {
+        FILE *ifs = open_file(brightness_path, "r");
+        int size = filesize(ifs);
+        char *current = allocate(size + 1);
+        size_t bytes = fread(current, sizeof(char), size, ifs);
+        fclose(ifs);
+
+        current[bytes] = '\0';
+        strip_newlines(current, bytes - 1);
+
+        ifs = open_file(CACHE_PATH, "w");
+        fwrite(current, sizeof(char), bytes, ifs);
+        fclose(ifs);
+
+        free(current);
+    }
+
+    // Free the buffer.
+    free(dir);
+}
+
+FILE *open_file(const char *path, const char *modes)
+{
+    FILE *f = fopen(path, modes);
+    if (!f) {
+        fprintf(stderr, "error: unable to open %s (%s).\n", path, modes);
+        exit(SYSFS_OPEN_FAILED);
+    }
+    return f;
+}
+
+int filesize(FILE *f)
+{
+    fseek(f, 0, SEEK_END);
+    int size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    return size;
+}
+
+char *allocate(int size)
+{
+    char *buf = (char *)malloc(sizeof(char) * size);
+    memset(buf, 0, size);
+    return buf;
+}
+
+void strip_newlines(char *buffer, size_t bytes)
+{
+    while (buffer[bytes] == '\n')
+        buffer[bytes--] = '\0';
+}
+
+char *dirname(const char *path)
+{
+    // Get position of the last character before /
+    int i = strlen(path) - 1;
+    while (path[i] != '/')
+        --i;
+
+    // Allocate a new buffer the length of the full dir path.
+    char *buf = allocate(i + 1);
+
+    // Copy the dir portion of the path.
+    strncpy(buf, path, i);
+    buf[i] = '\0';
+
+    return buf;
 }
