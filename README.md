@@ -2,6 +2,9 @@
 
 A simple keyboard LED controller for System76 laptops.
 
+<u>*Associated Links*</u><br />
+[![Trello Development Board](./assets/trello.png)](https://trello.com/b/6R6GS9bF)
+
 **DISCLAMIER**: This is not a System76 development; it is a personal project of my own and for no reason should you contact System76 about this program for support or anything like that. It was created because I could not find a software tool for it provided by Pop, though one most likely exists somewhere, and I wanted a simple tool to control all of it via software. I'd love to get this merged into the Pop OS repositories if it's at all useful to them!
 
 # Usage
