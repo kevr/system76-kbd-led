@@ -1,3 +1,17 @@
+/**
+ * File: main.c
+ *
+ * The main entry point for system76-kbd-led. This program serves as
+ * a software controller for the System76 keyboard LED lights under
+ * the Linux kernel. It takes hardware brightness levels into account
+ * when needed and saves a software cache for brightness and colors
+ * to restore on boot or when toggling on/off.
+ *
+ * Author: Kevin Morris <kevr.gtalk@gmail.com>
+ * License: MIT (see ./LICENSE)
+ *
+ * Trello: https://trello.com/b/6R6GS9bF/system76-kbd-led
+ **/
 #include <errno.h>
 #include <math.h>
 #include <stdio.h>
@@ -7,41 +21,50 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// Return codes.
 #define SYSFS_OPEN_FAILED 2
 #define INVALID_ARGUMENT 1
 
+// Filesystem prefixes.
 #define SYSFS_PREFIX "/sys/class/leds/system76::kbd_backlight/"
 #define SYSFS_COLOR_PREFIX SYSFS_PREFIX "color_"
 
+// Cache files.
 #define CACHE_PATH "/var/cache/system76-kbd-led/brightness"
 #define HW_CACHE_PATH "/var/cache/system76-kbd-led/hw_brightness"
 
+// Utility functions and macros.
 #define JOIN(prefix, value) prefix value
-
-// Bounds for checking.
-#define DEFAULT_INT_LENGTH 3
-
 char *join(const char *prefix, const char *suffix);
 
+// Shell functions.
 int print_usage(int argc, char *argv[]);
 int print_help(int argc, char *argv[]);
 int error(int return_code, const char *message);
 
+// Filesystem functions.
 void prepare_cache(void);
-
 FILE *open_file(const char *path, const char *modes);
 int filesize(FILE *f);
 char *dirname(const char *path);
 
+// Memory functions.
 char *allocate(int size);
+
+// String functions.
 void strip_newlines(char *buffer, const size_t bytes);
+
+// Branch functions.
+int do_brightness(int increment);
+int do_toggle(void);
+int do_color(const char *names[], char *colors[]);
 
 int main(int argc, char *argv[])
 {
     int opt;
     char *left = NULL, *center = NULL, *right = NULL, *extra = NULL;
     char toggle = 0;
-    int brightness_change = 0;
+    int increment = 0;
 
     while ((opt = getopt(argc, argv, "htl:c:r:e:b:")) != -1) {
         switch (opt) {
@@ -63,7 +86,7 @@ int main(int argc, char *argv[])
             extra = optarg;
             break;
         case 'b':
-            brightness_change = strtol(optarg, NULL, 10);
+            increment = strtol(optarg, NULL, 10);
             if (errno)
                 return error(errno, strerror(errno));
             break;
@@ -73,131 +96,21 @@ int main(int argc, char *argv[])
     }
 
     // If -b (brightness) was given.
-    if (brightness_change != 0) {
-        const char *brightness = JOIN(SYSFS_PREFIX, "brightness");
-        const char *max_brightness = JOIN(SYSFS_PREFIX, "max_brightness");
+    if (increment != 0)
+        do_brightness(increment);
 
-        FILE *ifs = open_file(brightness, "r");
-        int size = filesize(ifs);
-        char *buf = allocate(size + 1);
-        size_t bytes = fread(buf, sizeof(char), size, ifs);
-        buf[bytes] = '\0';
-        fclose(ifs);
-        int current = strtol(buf, NULL, 10);
-
-        prepare_cache();
-        ifs = open_file(max_brightness, "r");
-        size = filesize(ifs);
-        bytes = fread(buf, sizeof(char), size, ifs);
-        buf[bytes] = '\0';
-        fclose(ifs);
-        int max = strtol(buf, NULL, 10);
-
-        const int LOWER_BOUND = 45;
-        const int UPPER_BOUND = max;
-
-        int new_value = current + brightness_change;
-        if (new_value < LOWER_BOUND)
-            new_value = LOWER_BOUND;
-        else if (new_value > UPPER_BOUND)
-            new_value = UPPER_BOUND;
-
-        // Take log10(N) + 1 as the possible length of the value integer.
-        int len = log10(new_value) + 1;
-        char *output = allocate(len + 1);
-        sprintf(output, "%d", new_value);
-
-        ifs = open_file(brightness, "w");
-        fwrite(output, sizeof(char), strlen(output), ifs);
-        fclose(ifs);
-
-        FILE *ofs = open_file(CACHE_PATH, "w");
-        fwrite(output, sizeof(char), strlen(output), ofs);
-        fclose(ofs);
-
-        free(output);
-        free(buf);
-    }
-
+    // Always prepare the cache at this point.
     prepare_cache();
 
     // If -t (toggle) was given.
-    if (toggle) {
-        const char *brightness = JOIN(SYSFS_PREFIX, "brightness");
+    if (toggle)
+        do_toggle();
 
-        // Read current brightness value.
-        FILE *ifs = open_file(brightness, "r");
-        int size = filesize(ifs);
-        char *buf = allocate(size + 1);
-        size_t bytes = fread(buf, sizeof(char), 4, ifs);
-        fclose(ifs);
-
-        // Prepare buffer.
-        buf[bytes] = '\0';
-        strip_newlines(buf, bytes - 1);
-
-        if (strcmp(buf, "0") == 0) {
-            // Get cached hw_brightness
-            const char *hw_brightness =
-                JOIN(SYSFS_PREFIX, "brightness_hw_changed");
-
-            ifs = open_file(CACHE_PATH, "r");
-            size = filesize(ifs);
-
-            char *cache_buf = allocate(size + 1);
-            bytes = fread(cache_buf, sizeof(char), size, ifs);
-            fclose(ifs);
-
-            cache_buf[bytes] = '\0';
-            strip_newlines(cache_buf, bytes - 1);
-
-            // Restore the original brightness.
-            ifs = open_file(brightness, "w");
-            fwrite(cache_buf, sizeof(char), bytes, ifs);
-            fclose(ifs);
-
-            free(cache_buf);
-
-        } else {
-            ifs = open_file(brightness, "r");
-            size = filesize(ifs);
-            char *brightness_value = allocate(size + 1);
-            bytes = fread(brightness_value, sizeof(char), size, ifs);
-            fclose(ifs);
-
-            brightness_value[bytes] = '\0';
-            strip_newlines(brightness_value, bytes - 1);
-
-            // Save brightness value in the cache.
-            ifs = open_file(CACHE_PATH, "w");
-            fwrite(brightness_value, sizeof(char), size, ifs);
-            fclose(ifs);
-
-            // Turn it off!
-            ifs = open_file(brightness, "w");
-            fwrite("0", sizeof(char), 1, ifs);
-            fclose(ifs);
-
-            free(brightness_value);
-        }
-
-        free(buf);
-    }
-
-    const char *arr[] = {"left", "center", "right", "extra"};
+    const char *names[] = {"left", "center", "right", "extra"};
     char *colors[] = {left, center, right, extra};
 
-    int i;
-    for (i = 0; i < 4; ++i) {
-        if (colors[i] != NULL) {
-            char *path = join(SYSFS_COLOR_PREFIX, arr[i]);
-            FILE *ofs = open_file(path, "w");
-            fwrite(colors[i], sizeof(char), 8, ofs);
-            fwrite("\n", sizeof(char), 1, ofs);
-            fclose(ofs);
-            free(path);
-        }
-    }
+    // Run through this every time: each NULL element is ignored by do_color.
+    do_color(names, colors);
 
     return 0;
 }
@@ -377,3 +290,133 @@ char *dirname(const char *path)
 
     return buf;
 }
+
+int do_brightness(int increment)
+{
+    const char *brightness = JOIN(SYSFS_PREFIX, "brightness");
+    const char *max_brightness = JOIN(SYSFS_PREFIX, "max_brightness");
+
+    FILE *ifs = open_file(brightness, "r");
+    int size = filesize(ifs);
+    char *buf = allocate(size + 1);
+    size_t bytes = fread(buf, sizeof(char), size, ifs);
+    buf[bytes] = '\0';
+    fclose(ifs);
+    int current = strtol(buf, NULL, 10);
+
+    prepare_cache();
+    ifs = open_file(max_brightness, "r");
+    size = filesize(ifs);
+    bytes = fread(buf, sizeof(char), size, ifs);
+    buf[bytes] = '\0';
+    fclose(ifs);
+    int max = strtol(buf, NULL, 10);
+
+    const int LOWER_BOUND = 45;
+    const int UPPER_BOUND = max;
+
+    int new_value = current + increment;
+    if (new_value < LOWER_BOUND)
+        new_value = LOWER_BOUND;
+    else if (new_value > UPPER_BOUND)
+        new_value = UPPER_BOUND;
+
+    // Take log10(N) + 1 as the possible length of the value integer.
+    int len = log10(new_value) + 1;
+    char *output = allocate(len + 1);
+    sprintf(output, "%d", new_value);
+
+    ifs = open_file(brightness, "w");
+    fwrite(output, sizeof(char), strlen(output), ifs);
+    fclose(ifs);
+
+    FILE *ofs = open_file(CACHE_PATH, "w");
+    fwrite(output, sizeof(char), strlen(output), ofs);
+    fclose(ofs);
+
+    free(output);
+    free(buf);
+    return 0;
+}
+
+int do_toggle(void)
+{
+    const char *brightness = JOIN(SYSFS_PREFIX, "brightness");
+
+    // Read current brightness value.
+    FILE *ifs = open_file(brightness, "r");
+    int size = filesize(ifs);
+    char *buf = allocate(size + 1);
+    size_t bytes = fread(buf, sizeof(char), 4, ifs);
+    fclose(ifs);
+
+    // Prepare buffer.
+    buf[bytes] = '\0';
+    strip_newlines(buf, bytes - 1);
+
+    if (strcmp(buf, "0") == 0) {
+        // Get cached hw_brightness
+        const char *hw_brightness =
+            JOIN(SYSFS_PREFIX, "brightness_hw_changed");
+
+        ifs = open_file(CACHE_PATH, "r");
+        size = filesize(ifs);
+
+        char *cache_buf = allocate(size + 1);
+        bytes = fread(cache_buf, sizeof(char), size, ifs);
+        fclose(ifs);
+
+        cache_buf[bytes] = '\0';
+        strip_newlines(cache_buf, bytes - 1);
+
+        // Restore the original brightness.
+        ifs = open_file(brightness, "w");
+        fwrite(cache_buf, sizeof(char), bytes, ifs);
+        fclose(ifs);
+
+        free(cache_buf);
+
+    } else {
+        ifs = open_file(brightness, "r");
+        size = filesize(ifs);
+        char *brightness_value = allocate(size + 1);
+        bytes = fread(brightness_value, sizeof(char), size, ifs);
+        fclose(ifs);
+
+        brightness_value[bytes] = '\0';
+        strip_newlines(brightness_value, bytes - 1);
+
+        // Save brightness value in the cache.
+        ifs = open_file(CACHE_PATH, "w");
+        fwrite(brightness_value, sizeof(char), size, ifs);
+        fclose(ifs);
+
+        // Turn it off!
+        ifs = open_file(brightness, "w");
+        fwrite("0", sizeof(char), 1, ifs);
+        fclose(ifs);
+
+        free(brightness_value);
+    }
+
+    free(buf);
+
+    return 0;
+}
+
+int do_color(const char *names[], char *colors[])
+{
+    int i;
+    for (i = 0; i < 4; ++i) {
+        if (colors[i] != NULL) {
+            char *path = join(SYSFS_COLOR_PREFIX, names[i]);
+            FILE *ofs = open_file(path, "w");
+            fwrite(colors[i], sizeof(char), 8, ofs);
+            fwrite("\n", sizeof(char), 1, ofs);
+            fclose(ofs);
+            free(path);
+        }
+    }
+    return 0;
+}
+
