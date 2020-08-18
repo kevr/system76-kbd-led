@@ -1,0 +1,10 @@
+[Unit]
+Description=Restoration of system76-kbd-led colors.
+After=sys-devices-platform-system76-leds-system76::kbd_backlight.device
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/system76-kbd-led -x
+
+[Install]
+WantedBy=multi-user.target
