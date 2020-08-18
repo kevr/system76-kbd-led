@@ -61,7 +61,13 @@ Generate a `.deb` package after building the project.
 
 Install it on a Debian-based operating system.
 
+	# Install the .deb package.
 	$ sudo dpkg -i system76-kbd-led-*-Linux.deb
+
+	# For color and brightness restoration.
+	$ sudo systemctl enable system76-kbd-led.service
+	# For color and brightness persistance when changed by hardware.
+	$ sudo systemctl enable system76-kbd-led-cache.service
 
 # Authors
 
