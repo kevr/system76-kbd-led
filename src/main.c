@@ -88,9 +88,17 @@ int main(int argc, char *argv[])
     // If -x was given, restore colors by reading a color array
     // from cache and passing it to do_color.
     if (restore_colors) {
+        // Flag for read state.
+        char success = 0;
+
+        printf("Restoring brightness...\n");
+        int hw_brightness = -1;
+        read_int_bytes_unsafe(HW_BRIGHTNESS_CACHE, &hw_brightness, &success);
+        if (success)
+            write_int_bytes(SYSFS_BRIGHTNESS_PATH, hw_brightness);
+
         printf("Restoring colors...\n");
         char *restoration_colors[CNT_COLORS];
-        char success = 0;
         read_color_cache_unsafe(restoration_colors, &success);
         if (success) {
             printf("Found color cache!\n");
@@ -111,6 +119,12 @@ int main(int argc, char *argv[])
 
     // Read /sys/class/leds/system76::kbd_backlight/brightness.
     read_int_bytes(SYSFS_BRIGHTNESS_PATH, &brightness);
+    read_int_bytes(HW_BRIGHTNESS_CACHE, &hw_brightness);
+
+    // If the current sys brightness is mismatched from our cache,
+    // it must have been changed via hardware, so update it.
+    if (brightness != hw_brightness)
+        write_int_bytes(HW_BRIGHTNESS_CACHE, brightness);
 
     char success = 0;
     read_int_bytes_unsafe(SYSFS_HW_BRIGHTNESS_PATH, &sys_hw_brightness,
