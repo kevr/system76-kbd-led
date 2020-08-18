@@ -65,6 +65,9 @@ Install it on a Debian-based operating system.
 	# Install the .deb package.
 	$ sudo dpkg -i system76-kbd-led-*-Linux.deb
 
+Enable systemd services for color and brightness management on boot
+and shutdown.
+
 	# For color and brightness restoration.
 	$ sudo systemctl enable system76-kbd-led.service
 	# For color and brightness persistance when changed by hardware.
