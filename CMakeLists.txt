@@ -24,8 +24,11 @@ set(
 add_subdirectory(src)
 
 install(
-    FILES systemd/system76-kbd-led.service
-    DESTINATION "lib/systemd/system"
+    FILES
+    systemd/system76-kbd-led.service
+    systemd/system76-kbd-led-cache.service
+    DESTINATION
+    "lib/systemd/system"
 )
 
 set(CPACK_PACKAGE_CONTACT "kevr.gtalk@gmail.com")

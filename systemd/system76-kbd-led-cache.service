@@ -1,0 +1,10 @@
+[Unit]
+Description=Cacheing service for system76-kbd-led.
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStop=/usr/bin/system76-kbd-led
+
+[Install]
+WantedBy=multi-user.target
