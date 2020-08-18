@@ -25,7 +25,8 @@ FILE *fs_open(const char *path, const char *modes)
 {
     FILE *f = fopen(path, modes);
     if (!f) {
-        fprintf(stderr, "error: unable to open %s (%s).\n", path, modes);
+        fprintf(stderr, "error: unable to open %s (%s), are you root?\n", path,
+                modes);
         exit(FS_OPEN_FAILED);
     }
     return f;
