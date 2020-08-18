@@ -159,16 +159,18 @@ int print_usage(int argc, char *argv[])
 int print_help(int argc, char *argv[])
 {
     print_usage(argc, argv);
-    printf("\nProgram options:\n -h\t\t| Print help.\n -t\t\t| Toggle "
+    printf("\nProgram options:\n %-10s| Print help.\n %-10s| Toggle "
            "keyboard "
-           "light.\n -x\t\t| Restore colors and brightness.\n -l <arg>\t| "
+           "light.\n %-10s| Restore colors and brightness.\n %-10s| "
            "Left color "
            "(rgb).\n "
-           "-c <arg>\t| Center color (rgb).\n -r <arg>\t| Right color "
+           "%-10s| Center color (rgb).\n %-10s| Right color "
            "(rgb).\n "
-           "-e <arg>\t| Extra color (rgb).\n -b <arg>\t| A brightness "
+           "%-10s| Extra color (rgb).\n %-10s| A brightness "
            "increment "
-           "value (eg. -50, 100, +100).\n\n");
+           "value (eg. -50, 100, +100).\n\n",
+           "-h", "-t", "-x", "-l <arg>", "-c <arg>", "-r <arg>", "-e <arg>",
+           "-b <arg>");
     return 0;
 }
 
