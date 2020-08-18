@@ -23,12 +23,7 @@
 #include <unistd.h>
 
 // Return codes.
-#define SYSFS_OPEN_FAILED 2
 #define INVALID_ARGUMENT 1
-
-// Cache files.
-#define CACHE_PATH "/var/cache/system76-kbd-led/brightness"
-#define HW_CACHE_PATH "/var/cache/system76-kbd-led/hw_brightness"
 
 // Shell functions.
 int print_usage(int argc, char *argv[]);
