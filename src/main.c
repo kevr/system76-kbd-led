@@ -123,19 +123,7 @@ int main(int argc, char *argv[])
 
     // If the current sys brightness is mismatched from our cache,
     // it must have been changed via hardware, so update it.
-    if (brightness != hw_brightness)
-        write_int_bytes(HW_BRIGHTNESS_CACHE, brightness);
-
-    char success = 0;
-    read_int_bytes_unsafe(SYSFS_HW_BRIGHTNESS_PATH, &sys_hw_brightness,
-                          &success);
-    if (!success)
-        sys_hw_brightness = brightness;
-
-    // If brightness is still enabled and it doesn't match hardware
-    // brightness, write it to our hw_brightness cache to treat it
-    // like our hardware brightness if we toggle.
-    if (brightness != 0 && brightness != sys_hw_brightness)
+    if (brightness != 0 && brightness != hw_brightness)
         write_int_bytes(HW_BRIGHTNESS_CACHE, brightness);
 
     // If -t (toggle) was given.

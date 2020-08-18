@@ -48,6 +48,7 @@ void read_cache_unsafe(const char *path, char *data, const size_t len,
     size_t bytes = fread(data, sizeof(char), len, ifs);
     if (bytes == 0) {
         *success = 0;
+        fs_close(ifs);
         return;
     }
 
