@@ -178,7 +178,8 @@ int print_help(int argc, char *argv[])
     print_usage(argc, argv);
     printf("\nProgram options:\n -h\t\t| Print help.\n -t\t\t| Toggle "
            "keyboard "
-           "light.\n -x\t\t| Restore colors.\n -l <arg>\t| Left color "
+           "light.\n -x\t\t| Restore colors and brightness.\n -l <arg>\t| "
+           "Left color "
            "(rgb).\n "
            "-c <arg>\t| Center color (rgb).\n -r <arg>\t| Right color "
            "(rgb).\n "

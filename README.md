@@ -17,7 +17,7 @@ usage: system76-kbd-led [-htx] [-l <arg>] [-c <arg>] [-r <arg>] [-e <arg>] [-b <
 Program options:
  -h             | Print help.
  -t             | Toggle keyboard light.
- -x             | Restore colors.
+ -x             | Restore colors and brightness.
  -l <arg>       | Left color (rgb).
  -c <arg>       | Center color (rgb).
  -r <arg>       | Right color (rgb).
