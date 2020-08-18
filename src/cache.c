@@ -236,7 +236,4 @@ void setup_cache(void)
             read_int_bytes(SYSFS_BRIGHTNESS_PATH, &hw_brightness);
         write_int_bytes(HW_BRIGHTNESS_CACHE, hw_brightness);
     }
-
-    if (!fs_exists(COLORS_CACHE)) {
-    }
 }
