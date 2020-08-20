@@ -4,7 +4,7 @@ add_executable(
 
     # Source files
     main.c
-    cache.c
+    bytes.c
     colors.c
     fs.c
     buffer.c

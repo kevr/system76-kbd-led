@@ -1,4 +1,4 @@
-#include "cache.h"
+#include "bytes.h"
 #include "buffer.h"
 #include "error.h"
 #include "fs.h"
@@ -7,7 +7,7 @@
 #include <math.h>
 #include <stdlib.h>
 
-void write_cache(const char *path, char *data, const size_t len)
+void write_bytes(const char *path, char *data, const size_t len)
 {
     FILE *ofs = fs_open(path, "w");
 
@@ -20,7 +20,7 @@ void write_cache(const char *path, char *data, const size_t len)
     fs_close(ofs);
 }
 
-void read_cache(const char *path, char *data, const size_t len)
+void read_bytes(const char *path, char *data, const size_t len)
 {
     FILE *ifs = fs_open(path, "r");
 
@@ -36,7 +36,7 @@ void read_cache(const char *path, char *data, const size_t len)
     fs_close(ifs);
 }
 
-void read_cache_unsafe(const char *path, char *data, const size_t len,
+void read_bytes_unsafe(const char *path, char *data, const size_t len,
                        char *success)
 {
     FILE *ifs = fopen(path, "r");
@@ -70,7 +70,7 @@ void write_int_bytes(const char *path, int value)
     printf("value: %d, bytes: %s\n", value, bytes);
 
     // Write it out to the cache file as bytes.
-    write_cache(path, bytes, len);
+    write_bytes(path, bytes, len);
 
     free(bytes);
 }
@@ -83,7 +83,7 @@ void read_int_bytes(const char *path, int *value)
     char *buf = allocate(len + 1);
 
     // Read it from the cache file as bytes.
-    read_cache(path, buf, len);
+    read_bytes(path, buf, len);
 
     // Convert the bytes we read into an integer.
     *value = strtol(buf, NULL, 10);
@@ -99,7 +99,7 @@ void read_int_bytes_unsafe(const char *path, int *value, char *success)
     char *buf = allocate(len + 1);
 
     // Read it from the cache file as bytes.
-    read_cache_unsafe(path, buf, len, success);
+    read_bytes_unsafe(path, buf, len, success);
 
     // Convert the bytes we read into an integer.
     *value = strtol(buf, NULL, 10);
@@ -136,7 +136,7 @@ void write_color_cache(char *colors[CNT_COLORS])
     }
 
     // Write our assembled output buffer to cache.
-    write_cache(JOIN(CACHE_PREFIX, "colors"), output, buffer_size);
+    write_bytes(JOIN(CACHE_PREFIX, "colors"), output, buffer_size);
     free(output);
 }
 

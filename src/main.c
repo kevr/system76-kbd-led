@@ -4,7 +4,7 @@
  * The main entry point for system76-kbd-led. This program serves as
  * a software controller for the System76 keyboard LED lights under
  * the Linux kernel. It takes hardware brightness levels into account
- * when needed and saves a software cache for brightness and colors
+ * when needed and saves a software bytes for brightness and colors
  * to restore on boot or when toggling on/off.
  *
  * Author: Kevin Morris <kevr.gtalk@gmail.com>
@@ -13,7 +13,7 @@
  * Trello: https://trello.com/b/6R6GS9bF/system76-kbd-led
  **/
 #include "buffer.h"
-#include "cache.h"
+#include "bytes.h"
 #include "colors.h"
 #include "fs.h"
 #include <errno.h>
@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
     char *colors[CNT_COLORS] = {left, center, right, extra};
 
     // If -x was given, restore colors by reading a color array
-    // from cache and passing it to do_color.
+    // from bytes and passing it to do_color.
     if (restore_colors) {
         // Flag for read state.
         char success = 0;
@@ -96,12 +96,12 @@ int main(int argc, char *argv[])
         char *restoration_colors[CNT_COLORS];
         read_color_cache_unsafe(restoration_colors, &success);
         if (success) {
-            printf("Found color cache!\n");
+            printf("Found color bytes!\n");
             printf("Restoring colors...\n");
             do_color(names, restoration_colors);
             free_color_data(restoration_colors);
         } else {
-            printf("No color cache found, skipping restoration.\n");
+            printf("No color bytes found, skipping restoration.\n");
         }
     }
 
@@ -116,7 +116,7 @@ int main(int argc, char *argv[])
     read_int_bytes(SYSFS_BRIGHTNESS_PATH, &brightness);
     read_int_bytes(HW_BRIGHTNESS_CACHE, &hw_brightness);
 
-    // If the current sys brightness is mismatched from our cache,
+    // If the current sys brightness is mismatched from our bytes,
     // it must have been changed via hardware, so update it.
     if (brightness != 0 && brightness != hw_brightness)
         write_int_bytes(HW_BRIGHTNESS_CACHE, brightness);
@@ -141,7 +141,7 @@ int main(int argc, char *argv[])
         printf("color(%s): %s\n", names[i], color_value);
     }
 
-    // Write colors out to cache.
+    // Write colors out to bytes.
     write_color_cache(colors);
     free_color_data(colors);
 
@@ -201,7 +201,7 @@ int do_brightness(int increment)
         new_value = UPPER_BOUND;
 
     // Write out the new brightness value to everything:
-    // sysfs brightness, brightness cache and hw_brightness cache.
+    // sysfs brightness, brightness bytes and hw_brightness bytes.
     write_int_bytes(SYSFS_BRIGHTNESS_PATH, new_value);
 
     return 0;
@@ -217,7 +217,7 @@ int do_toggle(void)
         write_int_bytes(SYSFS_BRIGHTNESS_PATH, 0);
         write_int_bytes(HW_BRIGHTNESS_CACHE, brightness);
     } else {
-        // Restore hw_brightness cache value.
+        // Restore hw_brightness bytes value.
         int hw_brightness = -1;
         read_int_bytes(HW_BRIGHTNESS_CACHE, &hw_brightness);
         write_int_bytes(SYSFS_BRIGHTNESS_PATH, hw_brightness);
