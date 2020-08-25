@@ -15,7 +15,10 @@ using color::center;
 using color::left;
 using color::right;
 
-#define USAGE_LINE " --command arg [-hv] [--help] [--verbose]"
+#define USAGE_LINE                                                            \
+    " [-h,--help] [-v,--verbose] [-t,--toggle] [-x,--restore] [-l,--left "    \
+    "<arg>] [-c,--center <arg>] [-r,--right <arg>] [-e,--extra <arg>] "       \
+    "[-b,--brightness <arg>]"
 
 // Alias boost::program_options to boost::po.
 namespace boost
