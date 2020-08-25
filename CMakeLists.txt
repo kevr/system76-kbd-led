@@ -10,11 +10,11 @@ project(system76-kbd-led)
 # We require a C++17 compliant compiler
 set(
     CMAKE_CXX_FLAGS_DEBUG
-    "-O0 -g"
+    "-O0 -g -std=c++20"
 )
 set(
     CMAKE_CXX_FLAGS_RELEASE
-    "-O3"
+    "-O3 -std=c++20"
 )
 
 # Setup library flags for all C++ targets.
