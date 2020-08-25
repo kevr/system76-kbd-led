@@ -5,7 +5,7 @@ After=sys-devices-platform-system76-leds-system76::kbd_backlight.device
 [Service]
 Type=oneshot
 RemainAfterExit=true
-ExecStart=/usr/bin/system76-kbd-led++ -x
+ExecStart=/usr/bin/system76-kbd-led -x
 
 [Install]
 WantedBy=multi-user.target

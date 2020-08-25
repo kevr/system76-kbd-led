@@ -9,7 +9,7 @@ router.get('/', function(req, res, next) {
 });
 
 router.get('/colors', (req, res, next) => {
-  let command = "system76-kbd-led++";
+  let command = "system76-kbd-led";
   exec(command, (error, stdout, stderr) => {
     if(error) {
       console.error(`Error running ${command}!`);
@@ -35,7 +35,7 @@ router.put('/colors', (req, res, next) => {
     return;
   }
 
-  let command = "system76-kbd-led++ ";
+  let command = "system76-kbd-led ";
   command += `-l ${color} -c ${color} -r ${color}`;
 
   console.log(`Executing '${command}'`);
@@ -57,7 +57,7 @@ router.put('/colors/:region', (req, res, next) => {
     return;
   }
 
-  let command = "system76-kbd-led++ ";
+  let command = "system76-kbd-led ";
   const region = req.params["region"];
   if(["left", "center", "right"].indexOf(region) == -1) {
     res.json({ status: 400, message: "Incorrect 'region' parameter." });
