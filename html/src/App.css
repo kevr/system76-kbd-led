@@ -1,0 +1,90 @@
+html {
+  height: 100%;
+}
+
+html, body, #root, .flex {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}
+
+.flexRow {
+  display: flex;
+  flex-direction: row;
+}
+
+.flexColumn {
+  display: flex;
+  flex-direction: column;
+}
+
+.App {
+  display: flex;
+  flex: 1 1 auto;
+  text-align: center;
+  background-color: #282c34;
+}
+
+.App-logo {
+  height: 40vmin;
+  pointer-events: none;
+}
+
+.colorPicker {
+  margin: 0 auto;
+  flex: 0 0 auto;
+  display: block;
+  height: 220px;
+}
+
+.colorPicker, .colorPicker > div:nth-child(3) {
+  background: #383c48 !important;
+  elevation: 50;
+}
+
+.center {
+  text-align: center;
+}
+
+.keyboard {
+  margin: 25px auto;
+  border: 1px solid grey;
+  elevation: 50;
+}
+
+.cover {
+  background-size: cover;
+}
+
+.regions > div {
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .App-logo {
+    animation: App-logo-spin infinite 20s linear;
+  }
+}
+
+.App-header {
+  background-color: #282c34;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(10px + 2vmin);
+  color: white;
+}
+
+.App-link {
+  color: #61dafb;
+}
+
+@keyframes App-logo-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}

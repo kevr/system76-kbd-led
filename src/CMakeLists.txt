@@ -1,21 +1,17 @@
 add_executable(
-    # Target
     system76-kbd-led
 
-    # Source files
-    main.c
-    cache.c
-    colors.c
-    fs.c
-    buffer.c
+    main.cpp
+    keyboard.cpp
+    color/rgb.cpp
+    logging.cpp
+    fs.cpp
 )
 
 target_link_libraries(
-    # Target
     system76-kbd-led
-
-    # Libraries
     m
+    boost_program_options
 )
 
 install(TARGETS system76-kbd-led DESTINATION "bin")
