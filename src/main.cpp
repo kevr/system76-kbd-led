@@ -29,19 +29,24 @@ namespace po = program_options;
 int print_help(const std::string &usage,
                const boost::po::options_description &desc, int rc = 0);
 
+using boost::po::value;
+
 int main(int argc, char *argv[])
 {
     // Produce program options description.
     boost::po::options_description desc("Program options");
-    desc.add_options()("help,h", "Display the help message.")(
-        "verbose,v", "Enable debug logging.")("toggle,t", "Toggle keyboard.")(
-        "restore,x", "Restore colors and brightness.")(
-        "left,l", boost::po::value<std::string>(), "Left color (rgb).")(
-        "center,c", boost::po::value<std::string>(), "Center color (rgb).")(
-        "right,r", boost::po::value<std::string>(), "Right color (rgb).")(
-        "extra,e", boost::po::value<std::string>(),
-        "Extra color (rgb).")("brightness,b", boost::po::value<int>(),
-                              "Brightness increment (-/+).");
+    auto add_option = desc.add_options();
+
+    add_option("help,h", "Display the help message.");
+    add_option("verbose,v", "Enable debug logging.");
+    add_option("toggle,t", "Toggle keyboard.");
+    add_option("restore,x", "Restore colors and brightness.");
+    add_option("left,l", value<std::string>(), "Left color (rgb).");
+    add_option("center,c", value<std::string>(), "Center color (rgb).");
+    add_option("right,r", value<std::string>(), "Right color (rgb).");
+    add_option("extra,e", value<std::string>(), "Extra color (rgb).");
+    add_option("brightness,b", value<int>(), "Brightness overriding value.");
+    add_option("increment,i", value<int>(), "Brightness increment (-/+).");
 
     // Create a variables_map and parse the command line arguments into it.
     boost::po::variables_map vm;
@@ -131,15 +136,22 @@ int main(int argc, char *argv[])
         }
     }
 
-    // If brightness level is currently > 0, update it.
-    if (brightness.level() > 0)
-        b_cache.set_data(brightness.level());
+    if (vm.count("brightness")) {
+        brightness.set_value(vm.at("brightness").as<int>());
+        if (brightness.level())
+            b_cache.set_data(brightness.level());
+    }
 
     // If -b was given, apply the increment to brightness.
-    if (vm.count("brightness")) {
-        brightness.increment(vm.at("brightness").as<int>());
-        b_cache.set_data(brightness.level());
+    if (vm.count("increment")) {
+        brightness.increment(vm.at("increment").as<int>());
+        if (brightness.level())
+            b_cache.set_data(brightness.level());
     }
+
+    // If brightness level is > 0 and it mismatches the cache, update it.
+    if (brightness.level() > 0 && brightness.level() != b_cache.data().value())
+        b_cache.set_data(brightness.level());
 
     if (vm.count("toggle"))
         brightness.set_value(brightness.level() ? 0 : b_cache.data().value());
