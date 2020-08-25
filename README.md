@@ -12,17 +12,18 @@ A simple keyboard LED controller for System76 laptops supported by systemd servi
 `system76-kbd-led` controls the following sysfs nodes under the base System76 Keyboard LED prefix (`/sys/class/leds/system76::kbd_backlight`): `brightness`, `color_left`, `color_center`, `color_right`, `color_extra`.
 
 ```
-usage: system76-kbd-led [-htx] [-l <arg>] [-c <arg>] [-r <arg>] [-e <arg>] [-b <arg>]
+usage: system76-kbd-led [-h,--help] [-v,--verbose] [-t,--toggle] [-x,--restore] [-l,--left <arg>] [-c,--center <arg>] [-r,--right <arg>] [-e,--extra <arg>] [-b,--brightness <arg>]
 
 Program options:
- -h             | Print help.
- -t             | Toggle keyboard light.
- -x             | Restore colors and brightness.
- -l <arg>       | Left color (rgb).
- -c <arg>       | Center color (rgb).
- -r <arg>       | Right color (rgb).
- -e <arg>       | Extra color (rgb).
- -b <arg>       | A brightness increment value (eg. -50, 100, +100).
+  -h [ --help ]           Display the help message.
+  -v [ --verbose ]        Enable debug logging.
+  -t [ --toggle ]         Toggle keyboard.
+  -x [ --restore ]        Restore colors and brightness.
+  -l [ --left ] arg       Left color (rgb).
+  -c [ --center ] arg     Center color (rgb).
+  -r [ --right ] arg      Right color (rgb).
+  -e [ --extra ] arg      Extra color (rgb).
+  -b [ --brightness ] arg Brightness increment (-/+).
 ```
 
 **Note**: The `-t` option uses a software cache, located at `/var/cache/system76-kbd-led/brightness`, which is initially populated with `/sys/class/leds/system76::kbd_backlight/brightness_hw_changed`.
@@ -33,8 +34,9 @@ Program options:
 with `gcc` or `clang` for it's build process.
 
 	# Dependencies
-	cmake
-	gcc or clang
+	$ sudo apt-get install cmake gcc
+	$ sudo apt-get install libboost-dev-all
+
 
 Building is very simple:
 
