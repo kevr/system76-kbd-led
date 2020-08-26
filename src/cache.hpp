@@ -15,9 +15,10 @@ template <typename T>
 class cache
 {
 private:
+    // Path to this particular cache, given on construction.
     const std::string m_path;
 
-    // Type-erased data.
+    // Internal data.
     std::optional<T> m_data;
 
 public:
