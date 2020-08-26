@@ -12,7 +12,7 @@ A simple keyboard LED controller for System76 laptops supported by systemd servi
 `system76-kbd-led` controls the following sysfs nodes under the base System76 Keyboard LED prefix (`/sys/class/leds/system76::kbd_backlight`): `brightness`, `color_left`, `color_center`, `color_right`, `color_extra`.
 
 ```
-usage: system76-kbd-led [-h,--help] [-v,--verbose] [-t,--toggle] [-x,--restore] [-l,--left <arg>] [-c,--center <arg>] [-r,--right <arg>] [-e,--extra <arg>] [-b,--brightness <arg>]
+usage: system76-kbd-led [-h,--help] [-v,--verbose] [-t,--toggle] [-x,--restore] [-l,--left <arg>] [-c,--center <arg>] [-r,--right <arg>] [-e,--extra <arg>] [-b,--brightness <arg>] [-i,--increment <arg>]
 
 Program options:
   -h [ --help ]           Display the help message.
@@ -23,7 +23,8 @@ Program options:
   -c [ --center ] arg     Center color (rgb).
   -r [ --right ] arg      Right color (rgb).
   -e [ --extra ] arg      Extra color (rgb).
-  -b [ --brightness ] arg Brightness increment (-/+).
+  -b [ --brightness ] arg Brightness overriding value.
+  -i [ --increment ] arg  Brightness increment (-/+).
 ```
 
 **Note**: The `-t` option uses a software cache, located at `/var/cache/system76-kbd-led/brightness`, which is initially populated with `/sys/class/leds/system76::kbd_backlight/brightness_hw_changed`.
