@@ -16,22 +16,17 @@ using color::center;
 using color::left;
 using color::right;
 
-#define USAGE_LINE                                                            \
-    " [-h,--help] [-v,--verbose] [-t,--toggle] [-x,--restore] [-l,--left "    \
-    "<arg>] [-c,--center <arg>] [-r,--right <arg>] [-e,--extra <arg>] "       \
-    "[-b,--brightness <arg>] [-i,--increment <arg>]"
-
 // Alias boost::program_options to boost::po.
 namespace boost
 {
 namespace po = program_options;
 };
 
-int print_help(const std::string &usage,
-               const boost::po::options_description &desc, int rc = 0);
-int print_error(const std::string &error, int rc = 1);
-
-using boost::po::value;
+// Local aliases, structs, and function declarations.
+#define USAGE_LINE                                                            \
+    " [-h,--help] [-v,--verbose] [-t,--toggle] [-x,--restore] [-l,--left "    \
+    "<arg>] [-c,--center <arg>] [-r,--right <arg>] [-e,--extra <arg>] "       \
+    "[-b,--brightness <arg>] [-i,--increment <arg>]"
 
 struct app_cache {
     fs::brightness_cache<uint32_t> brightness;
@@ -39,12 +34,18 @@ struct app_cache {
     fs::color_cache<std::string> color;
 };
 
+int print_help(const std::string &usage,
+               const boost::po::options_description &desc, int rc = 0);
+int print_error(const std::string &error, int rc = 1);
+
+// Main entry point.
 int main(int argc, char *argv[])
 {
     // Produce program options description.
     boost::po::options_description desc("Program options");
     auto add_option = desc.add_options();
 
+    using boost::po::value;
     add_option("help,h", "Display the help message.");
     add_option("verbose,v", "Enable debug logging.");
     add_option("toggle,t", "Toggle keyboard.");
