@@ -8,10 +8,11 @@ add_executable(
     fs.cpp
 )
 
+set(Boost_USE_STATIC_LIBS "ON")
+find_package(boost_program_options)
 target_link_libraries(
     system76-kbd-led
-    m
-    boost_program_options
+    Boost::program_options
 )
 
 install(TARGETS system76-kbd-led DESTINATION "bin")
