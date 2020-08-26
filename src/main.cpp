@@ -11,6 +11,7 @@
 #include "logging.hpp"
 #include <boost/program_options.hpp>
 #include <iostream>
+#include <sys/stat.h>
 using color::center;
 using color::left;
 using color::right;
@@ -18,7 +19,7 @@ using color::right;
 #define USAGE_LINE                                                            \
     " [-h,--help] [-v,--verbose] [-t,--toggle] [-x,--restore] [-l,--left "    \
     "<arg>] [-c,--center <arg>] [-r,--right <arg>] [-e,--extra <arg>] "       \
-    "[-b,--brightness <arg>]"
+    "[-b,--brightness <arg>] [-i,--increment <arg>]"
 
 // Alias boost::program_options to boost::po.
 namespace boost
@@ -78,13 +79,20 @@ int main(int argc, char *argv[])
 
     logging::set_debug(vm.count("verbose"));
 
+    if (!fs::exists("/var/cache/system76-kbd-led")) {
+        int rc = mkdir("/var/cache/system76-kbd-led", 0777);
+        if (rc == -1 && errno != EEXIST) {
+            return print_error(
+                "mkdir() failed on: /var/cache/system76-kbd-led");
+        }
+    }
+
     app_cache cache;
 
     color::keyboard kb;
     led::brightness<uint32_t> brightness;
 
     if (vm.count("restore")) {
-
         if (!cache.color.exists())
             return print_error("cannot restore without a color cache.", 1);
 
