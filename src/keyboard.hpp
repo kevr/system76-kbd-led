@@ -15,6 +15,8 @@ private:
     region<color::extra, rgb> m_extra;
 
 public:
+    std::array<rgb, 4> regions(void) const;
+
     region<left, rgb> &left_region(void);
     const region<color::left, rgb> &left_region(void) const;
 
@@ -27,7 +29,7 @@ public:
     region<extra, rgb> &extra_region(void);
     const region<color::extra, rgb> &extra_region(void) const;
 
-    void set_color(const color::rgb &color, bool commit = false);
+    void set_color(const color::rgb &color);
 };
 
 }; // namespace color

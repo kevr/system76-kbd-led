@@ -88,15 +88,10 @@ public:
         stream.close();
     }
 
-    void set_color(const Color &color, bool commit = false)
+    void set_color(const Color &color)
     {
         m_color = color;
-        if (commit)
-            this->commit();
-    }
 
-    void commit(void)
-    {
         auto path = std::string(Region::path);
         auto stream = fs::open(path, std::ios::out);
         if (!stream) {

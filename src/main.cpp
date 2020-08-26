@@ -28,8 +28,15 @@ namespace po = program_options;
 
 int print_help(const std::string &usage,
                const boost::po::options_description &desc, int rc = 0);
+int print_error(const std::string &error, int rc = 1);
 
 using boost::po::value;
+
+struct app_cache {
+    fs::brightness_cache<uint32_t> brightness;
+    fs::hw_brightness_cache<uint32_t> hw_brightness;
+    fs::color_cache<std::string> color;
+};
 
 int main(int argc, char *argv[])
 {
@@ -61,7 +68,7 @@ int main(int argc, char *argv[])
     try {
         boost::po::store(parser.run(), vm);
     } catch (boost::po::unknown_option &e) {
-        std::cerr << "error: " << e.what() << std::endl;
+        print_error(e.what());
         return print_help(usage, desc, 1);
     }
     boost::po::notify(vm);
@@ -71,111 +78,97 @@ int main(int argc, char *argv[])
 
     logging::set_debug(vm.count("verbose"));
 
-    // Initialize cache objects.
-    fs::brightness_cache<uint32_t> b_cache;
-    fs::hw_brightness_cache<uint32_t> hw_cache;
-    fs::color_cache<std::string> c_cache;
+    app_cache cache;
 
     color::keyboard kb;
     led::brightness<uint32_t> brightness;
 
     if (vm.count("restore")) {
 
-        if (!c_cache.exists()) {
-            std::cerr << "error: cannot restore without a color cache."
-                      << std::endl;
-            return 1;
-        }
+        if (!cache.color.exists())
+            return print_error("cannot restore without a color cache.", 1);
 
-        auto colors = c_cache.data();
+        auto colors = cache.color.data().value();
+        kb.left_region().set_color(colors[0]);
+        kb.center_region().set_color(colors[1]);
+        kb.right_region().set_color(colors[2]);
+        kb.extra_region().set_color(colors[3]);
 
-        kb.left_region().set_color(colors[0], true);
-        kb.center_region().set_color(colors[1], true);
-        kb.right_region().set_color(colors[2], true);
+        if (!cache.brightness.exists())
+            return print_error("cannot restore without a brightness cache.",
+                               2);
 
-        if (!b_cache.exists()) {
-            std::cerr << "error: cannot restore without a brightness cache."
-                      << std::endl;
-            return 2;
-        }
-
-        brightness.set_value(b_cache.data().value());
+        brightness.set_value(cache.brightness.data().value());
         logging::debug("Restored brightness:", brightness.level(), '.');
     }
 
     if (vm.count("left")) {
-        kb.left_region().set_color(color::rgb(vm.at("left").as<std::string>()),
-                                   true);
+        kb.left_region().set_color(
+            color::rgb(vm.at("left").as<std::string>()));
     }
 
     if (vm.count("center")) {
         kb.center_region().set_color(
-            color::rgb(vm.at("center").as<std::string>()), true);
+            color::rgb(vm.at("center").as<std::string>()));
     }
 
     if (vm.count("right")) {
         kb.right_region().set_color(
-            color::rgb(vm.at("right").as<std::string>()), true);
+            color::rgb(vm.at("right").as<std::string>()));
     }
 
-    std::array<color::rgb, 4> colors = {
-        kb.left_region().color(), kb.center_region().color(),
-        kb.right_region().color(), kb.extra_region().color()};
+    if (vm.count("extra")) {
+        kb.extra_region().set_color(
+            color::rgb(vm.at("extra").as<std::string>()));
+    }
 
-    for (int i = 0; i < colors.size(); ++i) {
+    auto colors = kb.regions();
+    for (int i = 0; i < colors.size(); ++i)
         std::cout << std::to_string(colors[i]) << std::endl;
-    }
 
-    if (!hw_cache.exists()) {
-        hw_cache.set_data(brightness.hw_level());
-        b_cache.set_data(brightness.level());
+    if (!cache.hw_brightness.exists()) {
+        cache.hw_brightness.set_data(brightness.hw_level());
+        cache.brightness.set_data(brightness.level());
     } else {
         if (brightness.hw_level() &&
-            brightness.hw_level() != hw_cache.data().value()) {
-            hw_cache.set_data(brightness.hw_level());
+            brightness.hw_level() != cache.hw_brightness.data().value()) {
+            cache.hw_brightness.set_data(brightness.hw_level());
         }
     }
 
     if (vm.count("brightness")) {
         brightness.set_value(vm.at("brightness").as<int>());
         if (brightness.level())
-            b_cache.set_data(brightness.level());
+            cache.brightness.set_data(brightness.level());
     }
 
     // If -b was given, apply the increment to brightness.
     if (vm.count("increment")) {
         brightness.increment(vm.at("increment").as<int>());
         if (brightness.level())
-            b_cache.set_data(brightness.level());
+            cache.brightness.set_data(brightness.level());
     }
 
     // If brightness level is > 0 and it mismatches the cache, update it.
-    if (brightness.level() > 0 && brightness.level() != b_cache.data().value())
-        b_cache.set_data(brightness.level());
+    if (brightness.level() > 0 &&
+        brightness.level() != cache.brightness.data().value())
+        cache.brightness.set_data(brightness.level());
 
     if (vm.count("toggle"))
-        brightness.set_value(brightness.level() ? 0 : b_cache.data().value());
+        brightness.set_value(
+            brightness.level() ? 0 : cache.brightness.data().value());
 
     // Store color cache if it doesn't yet exist, otherwise update
     // it if it's different than what we have.
-    if (!c_cache.exists()) {
-        c_cache.set_data(kb.left_region().color(), kb.center_region().color(),
-                         kb.right_region().color());
-    } else {
-        auto cached_colors = c_cache.data();
-        if (cached_colors[0] != kb.left_region().color() ||
-            cached_colors[1] != kb.center_region().color() ||
-            cached_colors[2] != kb.right_region().color()) {
-            c_cache.set_data(kb.left_region().color(),
-                             kb.center_region().color(),
-                             kb.right_region().color());
-        }
+    try {
+        if (!cache.color.exists() ||
+            cache.color.data().value() != kb.regions())
+            cache.color.set_data(kb.regions());
+    } catch (std::out_of_range &e) {
+        // If we could not properly parse out our current color cache,
+        // override it with a valid value of our current keyboard.
+        cache.color.set_data(kb.regions());
     }
-
-    logging::debug("Color cache:", std::to_string(c_cache.data()[0]),
-                   std::to_string(c_cache.data()[1]),
-                   std::to_string(c_cache.data()[2]));
-
     logging::debug("Brightness: { level:", brightness.level(),
                    ", max_level:", brightness.max_level(),
                    ", hw_level:", brightness.hw_level(), " }");
@@ -192,3 +185,8 @@ int print_help(const std::string &usage,
     return rc;
 }
 
+int print_error(const std::string &error, int rc)
+{
+    std::cerr << "error: " << error << std::endl;
+    return rc;
+}

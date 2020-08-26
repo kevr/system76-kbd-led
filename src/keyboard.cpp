@@ -1,6 +1,12 @@
 #include "keyboard.hpp"
 using namespace color;
 
+std::array<rgb, 4> keyboard::regions(void) const
+{
+    return {left_region().color(), center_region().color(),
+            right_region().color(), extra_region().color()};
+}
+
 region<left, rgb> &keyboard::left_region(void)
 {
     return m_left;
@@ -41,10 +47,10 @@ const region<color::extra, rgb> &keyboard::extra_region(void) const
     return m_extra;
 }
 
-void keyboard::set_color(const color::rgb &color, bool commit)
+void keyboard::set_color(const color::rgb &color)
 {
-    m_left.set_color(color, commit);
-    m_center.set_color(color, commit);
-    m_right.set_color(color, commit);
-    m_extra.set_color(color, commit);
+    m_left.set_color(color);
+    m_center.set_color(color);
+    m_right.set_color(color);
+    m_extra.set_color(color);
 }

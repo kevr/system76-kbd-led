@@ -2,6 +2,7 @@
 #define RGB_HPP
 
 #include "../cache.hpp"
+#include "../logging.hpp"
 #include <cstdint>
 #include <string>
 
@@ -49,7 +50,17 @@ public:
 namespace std
 {
 string to_string(const color::rgb &c);
-};
+
+template <std::size_t N>
+string to_string(const std::array<color::rgb, N> &arr)
+{
+    string tmp;
+    for (auto &e : arr)
+        tmp.append(to_string(e));
+    return tmp;
+}
+
+}; // namespace std
 
 namespace fs
 {
@@ -63,22 +74,21 @@ public:
     {
     }
 
-    std::array<color::rgb, 3> data(void) const
+    std::optional<std::array<color::rgb, 4>> data(void) const
     {
+        if (!cache<T>::exists())
+            return std::nullopt;
+
         const auto s = cache<T>::data().value();
-        std::array<color::rgb, 3> regions;
-        regions[0] = color::rgb(s.substr(0, 6));
-        regions[1] = color::rgb(s.substr(6, 6));
-        regions[2] = color::rgb(s.substr(12, 6));
-        return regions;
+        // This will throw std::out_of_range on an invalid cache value.
+        return std::array<color::rgb, 4>{
+            color::rgb(s.substr(0, 6)), color::rgb(s.substr(6, 6)),
+            color::rgb(s.substr(12, 6)), color::rgb(s.substr(18, 6))};
     }
 
-    void set_data(const color::rgb &left, const color::rgb &center,
-                  const color::rgb &right)
+    void set_data(const std::array<color::rgb, 4> &regions)
     {
-        auto s = std::to_string(left) + std::to_string(center) +
-                 std::to_string(right);
-        cache<T>::set_data(s);
+        cache<T>::set_data(std::to_string(regions));
     }
 };
 
