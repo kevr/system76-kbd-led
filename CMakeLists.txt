@@ -31,5 +31,17 @@ install(
     "lib/systemd/system"
 )
 
+execute_process(
+    COMMAND
+    bash -c "git describe --long | sed 's/\\([^a-z]*\\)-g.*/\\1/;s/-/./g' | tr -d '\\n'"
+    OUTPUT_VARIABLE PKG_VERSION
+)
+
+message(STATUS "PKG_VERSION: '${PKG_VERSION}'")
+
+set(CPACK_PACKAGE_VERSION "${PKG_VERSION}")
+set(CPACK_DEBIAN_PACKAGE_VERSION "${PKG_VERSION}")
+set(CPACK_RPM_PACKAGE_VERSION ${CPACK_DEBIAN_PACKAGE_VERSION})
+
 set(CPACK_PACKAGE_CONTACT "kevr.gtalk@gmail.com")
 include(CPack)
