@@ -31,15 +31,33 @@ Program options:
 
 # Building
 
-`system76-kbd-led` is straightforward Linux application that uses CMake
-with `gcc` or `clang` for it's build process.
+## Build Dependencies
 
-	# Dependencies
-	$ sudo apt-get install cmake gcc
-	$ sudo apt-get install libboost-dev-all
+### Debian/Ubuntu
+| Package                      | Version  |
+|  :---:                       |  :---:   |
+| g++-10                       | >= 10.1  |
+| libstdc++-10-dev             | >= 10.1  |
+| libboost-program-options-dev | >= 1.65  |
+| cmake                        | >= 2.8.8 |
+| git                          | any      |
 
 
-Building is very simple:
+### Arch Linux
+| Package    | Version  |
+|  :---:     |  :---:   |
+| g++        | >= 10.1  |
+| libstdc++  | >= 10.1  |
+| boost      | >= 1.65  |
+| boost-libs | >= 1.65  |
+| cmake      | >= 2.8.8 |
+| git        | any      |
+
+After the deps for your system are installed, you can proceed to the compilation step below. 
+
+## Compilation
+
+To build `system76-kbd-led`, proceed with the following process:
 
 	$ mkdir build && cd build
 	$ cmake -DCMAKE_BUILD_TYPE=DEBUG ..
