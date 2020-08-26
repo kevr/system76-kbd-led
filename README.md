@@ -42,6 +42,7 @@ Program options:
 | cmake                        | >= 2.8.8 |
 | git                          | any      |
 
+	$ sudo apt-get install g++-10 libstdc++-10-dev libboost-program-options-dev cmake git
 
 ### Arch Linux
 | Package    | Version  |
@@ -53,6 +54,8 @@ Program options:
 | cmake      | >= 2.8.8 |
 | git        | any      |
 
+	$ sudo pacman -S g++ libstdc++ boost boost-libs cmake git
+
 After the deps for your system are installed, you can proceed to the compilation step below. 
 
 ## Compilation
@@ -62,7 +65,9 @@ To build `system76-kbd-led`, proceed with the following process:
 	$ mkdir build && cd build
 	$ cmake -DCMAKE_BUILD_TYPE=DEBUG ..
 	$ make
-	# Run the program.
+
+Run the program.
+
 	$ ./src/system76-kbd-led -h
 
 # Installation
@@ -74,14 +79,17 @@ a package for your distribution.
 
 Generate a `.deb` package after building the project.
 
-	$ git pull origin --tags # Fetch all tags from the repository.
 	# (Required to produce the correct version for CPack's .deb)
-	$ mkdir build
+	$ git pull origin --tags # Fetch all tags from the repository.
+
+	# Build the application for production.
+	$ mkdir build && cd build
 	$ cd build
 	$ cmake -DCMAKE_BUILD_TYPE=RELEASE ..
 	$ make
+
+	# Generate system76-kbd-led-<major>.<minor>.<patch>-Linux.deb.
 	$ cpack -G DEB
-	# system76-kbd-led-<major>.<minor>.<patch>-Linux.deb is generated.
 
 Install it on a Debian-based operating system.
 
@@ -91,9 +99,10 @@ Install it on a Debian-based operating system.
 Enable systemd services for color and brightness management on boot
 and shutdown.
 
-	# For color and brightness restoration.
+	# Restores the cache when started (normally, at boot).
 	$ sudo systemctl enable system76-kbd-led.service
-	# For color and brightness persistance when changed by hardware.
+
+	# Runs the program on shutdown to cache the current levels (at shutdown).
 	$ sudo systemctl enable system76-kbd-led-cache.service
 
 # Authors
