@@ -131,8 +131,8 @@ int main(int argc, char *argv[])
     }
 
     auto colors = kb.regions();
-    for (int i = 0; i < colors.size(); ++i)
-        std::cout << std::to_string(colors[i]) << std::endl;
+    for (auto &color : colors)
+        std::cout << std::to_string(color) << std::endl;
 
     if (!cache.hw_brightness.exists()) {
         cache.hw_brightness.set_data(brightness.hw_level());
