@@ -55,6 +55,8 @@ a package for your distribution.
 
 Generate a `.deb` package after building the project.
 
+	$ git pull origin --tags # Fetch all tags from the repository.
+	# (Required to produce the correct version for CPack's .deb)
 	$ mkdir build
 	$ cd build
 	$ cmake -DCMAKE_BUILD_TYPE=RELEASE ..
