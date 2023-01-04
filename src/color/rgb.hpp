@@ -3,6 +3,7 @@
 
 #include "../cache.hpp"
 #include "../logging.hpp"
+#include <array>
 #include <cstdint>
 #include <string>
 
@@ -95,4 +96,3 @@ public:
 }; // namespace fs
 
 #endif /* COLOR_HPP */
-
